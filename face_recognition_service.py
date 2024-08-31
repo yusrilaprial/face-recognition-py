@@ -76,5 +76,53 @@ def match_face():
 
     return jsonify({'status': 'failed', 'message': 'No match found!'}), 404
 
+@app.route('/match_faces', methods=['POST'])
+def match_faces():
+    if 'faces' not in request.files or 'image_to_match' not in request.files:
+        return jsonify({'status': 'failed', 'message': 'Faces and image_to_match files are required!'}), 400
+
+    # Mengambil daftar wajah untuk didaftarkan
+    faces = request.files.getlist('faces')
+    image_to_match_file = request.files['image_to_match']
+
+    registered_faces = {}
+
+    # Proses setiap wajah di parameter faces
+    for file in faces:
+        name = file.name  # Nama file digunakan sebagai nama wajah
+        try:
+            image = read_image(file)
+        except ValueError as e:
+            return jsonify({'status': 'failed', 'message': str(e)}), 400
+
+        # Deteksi dan encode wajah
+        face_encodings = face_recognition.face_encodings(image)
+        if len(face_encodings) == 0:
+            return jsonify({'status': 'failed', 'message': f'No face detected in the image for {name}!'}), 400
+
+        # Simpan encoding wajah ke dalam dictionary
+        registered_faces[name] = face_encodings[0]
+
+    try:
+        # Proses gambar untuk dicocokkan
+        image_to_match = read_image(image_to_match_file)
+    except ValueError as e:
+        return jsonify({'status': 'failed', 'message': str(e)}), 400
+
+    # Deteksi dan encode wajah untuk gambar yang dicocokkan
+    face_encodings_to_check = face_recognition.face_encodings(image_to_match)
+    if len(face_encodings_to_check) == 0:
+        return jsonify({'status': 'failed', 'message': 'No face detected in the image to match!'}), 400
+
+    face_encoding_to_check = face_encodings_to_check[0]
+
+    # Bandingkan setiap encoding wajah yang terdaftar dengan gambar yang akan dicocokkan
+    for name, face_encoding in registered_faces.items():
+        match = face_recognition.compare_faces([face_encoding], face_encoding_to_check)
+        if match[0]:
+            return jsonify({'status': 'success', 'message': f'Match found for {name}.'}), 200
+
+    return jsonify({'status': 'failed', 'message': 'No match found!'}), 404
+
 if __name__ == '__main__':
     app.run(debug=True)

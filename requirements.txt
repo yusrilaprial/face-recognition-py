@@ -2,3 +2,4 @@ face-recognition
 numpy
 flask
 opencv-python
+imutils
