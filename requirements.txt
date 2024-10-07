@@ -2,4 +2,7 @@ face-recognition
 numpy
 flask
 opencv-python
+deepface
+tf-keras
+torch
 imutils
