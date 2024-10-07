@@ -2,8 +2,13 @@ from flask import Flask, request, jsonify
 import face_recognition
 import numpy as np
 import cv2
+import dlib
 
 app = Flask(__name__)
+
+# Load dlib face detector dan predictor untuk landmark
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 # Dictionary untuk menyimpan data wajah terdaftar
 registered_faces = {}
@@ -25,6 +30,51 @@ def read_image(file):
         raise ValueError("Unsupported image type, must be 8bit per channel.")
 
     return image
+
+# def is_image_blurry(image):
+#     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#     variance = cv2.Laplacian(gray, cv2.CV_64F).var()
+#     return variance < 75  # Threshold ditingkatkan untuk toleransi
+
+def check_reflection(image):
+    # Hitung rata-rata nilai pixel di area tertentu
+    avg_color = cv2.mean(image)
+    # Penerimaan lebih luas untuk refleksi
+    return avg_color[0] > 70 and avg_color[1] > 70 and avg_color[2] > 70
+
+def analyze_landmarks(landmarks):
+    # Menghitung jarak antara landmark tertentu
+    landmarks_array = np.array([(p.x, p.y) for p in landmarks.parts()])
+    distance = np.linalg.norm(landmarks_array[30] - landmarks_array[34])  # Contoh: jarak antara alis
+    return distance
+
+def check_image_validity(image):
+    # Deteksi wajah
+    faces = detector(image, 1)
+    
+    if len(faces) == 0:
+        return "No face detected"
+    
+    # # Cek apakah gambar buram
+    # if is_image_blurry(image):
+    #     return "Image is blurry, but could still be a real face"
+
+    # Cek refleksi
+    if not check_reflection(image):
+        return "Unusual reflection detected, further analysis needed"
+
+    # Ambil landmark wajah
+    for face in faces:
+        landmarks = predictor(image, face)
+
+        # Analisis jarak antar landmark
+        landmark_distance = analyze_landmarks(landmarks)
+
+        # Threshold jarak landmark lebih longgar
+        if landmark_distance < 30:  # Threshold ini lebih tinggi
+            return "Unnatural proportions detected, further analysis needed"
+
+    return "Face detected. Further analysis needed."
 
 @app.route('/register', methods=['POST'])
 def register_face():
@@ -76,7 +126,7 @@ def match_face():
 
     return jsonify({'status': 'failed', 'message': 'No match found!'}), 404
 
-@app.route('/match_faces', methods=['POST'])
+@app.route('/match-faces', methods=['POST'])
 def match_faces():
     if 'faces' not in request.files or 'image_to_match' not in request.files:
         return jsonify({'status': 'failed', 'message': 'Faces and image_to_match files are required!'}), 400
@@ -123,6 +173,26 @@ def match_faces():
             return jsonify({'status': 'success', 'message': f'Match found for {name}.'}), 200
 
     return jsonify({'status': 'failed', 'message': 'No match found!'}), 404
+
+@app.route('/check-face', methods=['POST'])
+def check_face():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image part"}), 400
+
+    file = request.files['image']
+    
+    # Menggunakan OpenCV untuk membaca gambar dari upload
+    npimg = np.fromfile(file, np.uint8)
+    image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+
+    if image is None:
+        return jsonify({"error": "Invalid image file"}), 400
+
+    # Lakukan pengecekan keaslian gambar
+    result = check_image_validity(image)
+
+    # Kembalikan hasil deteksi
+    return jsonify({"result": result})
 
 if __name__ == '__main__':
     app.run(debug=True)
