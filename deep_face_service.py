@@ -277,11 +277,11 @@ def best_match():
         db_path = BASE_DB_PATH + request.json['db_path']
         # db_path = "C:/Users/binta/Pictures/Kaggle/Faces/Faces"
 
-        thershold = 0.68
+        threshold = 0.68
         if 'threshold' in request.json and isinstance(request.json['threshold'], (float)):
-            thershold = request.json['threshold']
+            threshold = request.json['threshold']
 
-        result = DeepFace.find(img_path = image, db_path = db_path, anti_spoofing = True, threshold = thershold)
+        result = DeepFace.find(img_path = image, db_path = db_path, anti_spoofing = True, threshold = threshold)
         result = result[0].to_dict()
 
         if result['identity'] and len(result['identity']) > 0:
