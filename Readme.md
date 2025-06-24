@@ -3,7 +3,7 @@
 - Run Virtual Environment: `.venv\Scripts\activate`
 - Exit Virtual Environment: `deactivate`
 - Install Packages: `pip install -r requirements.txt`
-- Run App: `python face_recognition_service.py`
+- Run App: `python deep_face_service.py`
 
 # Error Case
 - Download dlib binary and install manual `python -m pip install dlib-19.22.99-cp310-cp310-win_amd64.whl` (this only for python 3.10)
